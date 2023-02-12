@@ -1,6 +1,6 @@
-# esp32-s3-clock
+# esp32s3_T-Dispay_test
 
-Basic digital clock synced with Internet via NTP and configured via command line (CLI via USB-Serial)
+Basic application synced with Internet via NTP to test T-Display LilyGo.
 
 ## Build and Upload
 
@@ -18,9 +18,4 @@ Using your USB cable, connect it and run:
 pio device monitor
 ```
 
-Press enter and type help. You should see the configuration commands for setup your WiFi and time settings.
-
-## Credits
-
-The original version was from [LilyGO](https://github.com/Xinyuan-LilyGO/T-Display-S3) but this version burned the libraries and dependencies into the main repository. Also the LVGL config was into the hidden directory. For show the best practices I did this basic example using some tools from PlatformIO.
 
