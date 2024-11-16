@@ -131,7 +131,7 @@ void gui_switch_page(void)
 {
   pageNbr++;
   lv_obj_set_tile_id(display, 0, pageNbr % UI_PAGE_COUNT, LV_ANIM_ON);
-  LV_LOG_WARN("Page:%d", pageNbr % UI_PAGE_COUNT);
+  LV_LOG_USER("Page:%d", pageNbr % UI_PAGE_COUNT);
 }
 
 // CLOCK
@@ -191,7 +191,7 @@ static void update_page_evt_cb(lv_event_t *e)
     {
       httpstr = "http://";
       httpstr += lv_table_get_cell_value(table, 4, 1),
-          LV_LOG_WARN(httpstr.c_str());
+      LV_LOG_USER(httpstr.c_str());
       lv_qrcode_update(qrImage, httpstr.c_str(), strlen(httpstr.c_str()));
     }
   }
@@ -209,7 +209,6 @@ static void draw_table_evt_cb(lv_event_t *e)
   {
     uint32_t row = dsc->id / lv_table_get_col_cnt(obj);
     uint32_t col = dsc->id - row * lv_table_get_col_cnt(obj);
-
     /*Make the texts in the first cell center aligned*/
     if (row == 0)
     {
@@ -222,7 +221,6 @@ static void draw_table_evt_cb(lv_event_t *e)
     {
       dsc->label_dsc->align = LV_TEXT_ALIGN_RIGHT;
     }
-
     /*make every 2nd row grayish*/
     if ((row != 0 && row % 2) == 0)
     {
@@ -235,7 +233,7 @@ static void draw_table_evt_cb(lv_event_t *e)
 void my_gif_set_spi(lv_obj_t *img3, String path)
 {
   const char *strfile = path.c_str() + 2;
-  LV_LOG_WARN("strfile=%s", strfile);
+  LV_LOG_USER("strfile=%s", strfile);
   File file = SPIFFS.open(strfile, "r");
   if (!file)
   {
@@ -254,6 +252,7 @@ void my_gif_set_spi(lv_obj_t *img3, String path)
 
 void gui_pages()
 {
+  LV_LOG_USER("Start GUI startingTask");
   // Display
   display = lv_tileview_create(lv_scr_act());
   lv_obj_align(display, LV_ALIGN_TOP_RIGHT, 0, 0);
@@ -267,6 +266,7 @@ void gui_pages()
   lv_obj_t *tv5 = lv_tileview_add_tile(display, 0, 4, LV_DIR_HOR);
 
   // Page 1 TEST GRAPH + LABEL COLOR
+  LV_LOG_USER("Page 1");
   lv_obj_t *msg_label = lv_label_create(tv1);
   lv_obj_align(msg_label, LV_ALIGN_TOP_LEFT, 0, 0);
   lv_obj_set_width(msg_label, lv_pct(100));
@@ -307,6 +307,7 @@ void gui_pages()
   lv_chart_refresh(chart);
 
   // page 2  TEST LABEL
+  LV_LOG_USER("Page 2");
   lv_obj_t *debug_label = lv_label_create(tv2);
   lv_label_set_recolor(debug_label, true);
   lv_obj_add_event_cb(debug_label, update_page_evt_cb, LV_EVENT_MSG_RECEIVED, NULL);
@@ -316,8 +317,8 @@ void gui_pages()
   //  Install File Driver for SPIFFS format
   init_file_system_driver();
 
-// FAIRE TEST SI£ LES FI£CHIERS N'EXISTE PAS !
-  // Creating an image object and setting the source of the image to the file "example.bmp" 
+  // FAIRE TEST SI LES FI£CHIERS N'EXISTE PAS !
+  // Creating an image object and setting the source of the image to the file "example.bmp"
   lv_obj_t *img1 = lv_img_create(tv2);
   lv_img_set_src(img1, "P:/example.bmp"); // Warming BMP codage 16 Color...Export with Gimp
   lv_obj_align(img1, LV_ALIGN_TOP_LEFT, 0, 0);
@@ -341,9 +342,11 @@ void gui_pages()
   lv_obj_align(img3, LV_ALIGN_RIGHT_MID, 0, 0);
 
   // page 3 TEST TABLE
+  LV_LOG_USER("Page 3");
+  
   lv_obj_t *table = lv_table_create(tv3);
   lv_label_set_recolor(table, true);
-  /*Fill the first column*/
+  // Fill the first column
   lv_table_set_cell_value(table, 0, 0, "Chip ");
   lv_table_set_cell_value(table, 1, 0, "Psram ");
   lv_table_set_cell_value(table, 2, 0, "Flash ");
@@ -353,8 +356,8 @@ void gui_pages()
   lv_table_set_cell_value(table, 6, 0, "");
   lv_table_set_cell_value(table, 7, 0, "");
   lv_table_set_col_width(table, 0, 60);
-
-  /*Fill the second column*/
+  
+  // Fill the second column
   for (int i = 0; i < 8; i++)
     lv_table_set_cell_value(table, i, 1, "");
   lv_table_set_col_width(table, 1, 150);
@@ -362,12 +365,15 @@ void gui_pages()
   lv_obj_set_style_pad_ver(table, 1, LV_PART_ITEMS);
   lv_obj_set_style_pad_hor(table, 1, LV_PART_ITEMS);
   lv_obj_set_height(table, EXAMPLE_LCD_V_RES);
-  lv_obj_align(table, /* see `lv_obj.h`  */ LV_ALIGN_TOP_LEFT, 0, 0);
+
+  lv_obj_align(table, LV_ALIGN_TOP_LEFT, 0, 0);
+  
   lv_obj_add_event_cb(table, update_page_evt_cb, LV_EVENT_MSG_RECEIVED, NULL);
   lv_msg_subsribe_obj(MSG_TABLE, table, (void *)"");
-  lv_obj_add_event_cb(table, draw_table_evt_cb, LV_EVENT_DRAW_PART_BEGIN, NULL);
-
+  //lv_obj_add_event_cb(table, draw_table_evt_cb, LV_EVENT_DRAW_PART_BEGIN, NULL);
+  
   // QR code test
+  LV_LOG_USER("Page 3 QRCode");
   lv_color_t bg_color = lv_palette_lighten(LV_PALETTE_LIGHT_BLUE, 5);
   lv_color_t fg_color = lv_palette_darken(LV_PALETTE_BLUE, 4);
   qrImage = lv_qrcode_create(tv3, 100, fg_color, bg_color);
@@ -377,27 +383,32 @@ void gui_pages()
   lv_obj_set_style_border_width(qrImage, 5, 0);
 
   // test scrolled clock PAGE 4
+  LV_LOG_USER("Page 4");
   buildClock(tv4, 0, 0);
 
   // Test Purtherminal
   lv_obj_t *ipurth = lv_img_create(tv5);
-
+#ifndef LEPTON
   LV_IMG_DECLARE(purthermal); // Voir file purthermal.c
   lv_img_set_src(ipurth, &purthermal);
-  //   // Create a dynamic image
-  //   img_purethermal.header.always_zero = 0;
-  //   img_purethermal.header.w = 160;
-  //   img_purethermal.header.h = 120;
-  //   img_purethermal.data_size = 19200 * LV_COLOR_SIZE / 8;
-  //   img_purethermal.header.cf = LV_IMG_CF_TRUE_COLOR;
-  //   // Allocate on the heap.
-  //   img_purethermal.data = (uint8_t*)malloc(img_purethermal.data_size);
-  //   // Populate the data array (using the existing one for convenience)
-  //   for (int i = 0; i < img_purethermal.data_size; ++i) {
-  //       img_purethermal.data[i] = purthermal.data[i];
-  //   }
-  // lv_img_set_src(ipurth, &img_purethermal);
-  
+#else
+  // Create a dynamic image
+  img_purethermal.header.always_zero = 0;
+  img_purethermal.header.w = 160;
+  img_purethermal.header.h = 120;
+  img_purethermal.data_size = 19200 * LV_COLOR_SIZE / 8;
+  img_purethermal.header.cf = LV_IMG_CF_TRUE_COLOR;
+  // Allocate on the heap.
+  img_purethermal.data = (uint8_t *)malloc(img_purethermal.data_size);
+  // Populate the data array (using the existing one for convenience)
+  for (int i = 0; i < img_purethermal.data_size; ++i)
+  {
+    img_purethermal.data[i] = purthermal.data[i];
+  }
+  lv_img_set_src(ipurth, &img_purethermal);
+#endif
   lv_obj_align(ipurth, LV_ALIGN_CENTER, 0, 0);
-  lv_img_set_zoom(ipurth, 360);  // x2 w.h 160.120
+  lv_img_set_zoom(ipurth, 360); // x2 w.h 160.120
+
+  LV_LOG_USER("End GUI startingTask");
 }

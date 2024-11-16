@@ -16,7 +16,7 @@ void *open_SPIFFS_file(struct _lv_fs_drv_t *drv, const char *path, lv_fs_mode_t 
     (void)drv; /*Unused*/
     fs::File *spiFile = new fs::File();
     *spiFile = SPIFFS.open(path, mode == LV_FS_MODE_WR ? FILE_WRITE : FILE_READ);
-    // LV_LOG_WARN("open_SPIFFS_file for %s", path);
+    // LV_LOG_USER("open_SPIFFS_file for %s", path);
     if (!*spiFile)
     {
         return NULL;
@@ -43,7 +43,7 @@ lv_fs_res_t read_SPIFFS_file(struct _lv_fs_drv_t *drv, void *file_p, void *buf, 
     else
     {
         *br = (uint32_t)file.readBytes((char *)buf, btr);
-        // LV_LOG_WARN("read_SPIFFS_file *br=%d btr=%d", *br, btr);
+        // LV_LOG_USER("read_SPIFFS_file *br=%d btr=%d", *br, btr);
         return LV_FS_RES_OK;
     }
 }
@@ -77,7 +77,7 @@ lv_fs_res_t seek_SPIFFS_file(lv_fs_drv_t *drv, void *file_p, uint32_t pos, lv_fs
     }
     else
     {
-        //  LV_LOG_WARN("seek_SPIFFS_file at %d", pos);
+        //  LV_LOG_USER("seek_SPIFFS_file at %d", pos);
         file.seek(pos, SeekSet);
         return LV_FS_RES_OK;
     }

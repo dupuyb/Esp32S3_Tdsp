@@ -1,6 +1,6 @@
 # esp32s3_T-Display_test
 
-Basic application synced with Internet via NTP to test T-Display LilyGo and lvgl open-source embedded graphics library.
+Basic application synced with Internet via NTP to test T-Display (ST7789 Driver) LilyGo and lvgl open-source embedded graphics library.
 
 ## Build and Upload
 
