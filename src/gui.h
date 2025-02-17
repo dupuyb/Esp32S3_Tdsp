@@ -28,5 +28,5 @@ struct DataMsg {
 
 void lcd_setup();
 void gui_pages();
-void gui_switch_page();
+void gui_switch_page(int s);
 void gui_switch_clock(int h, int m, int s);

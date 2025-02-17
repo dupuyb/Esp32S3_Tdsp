@@ -13,7 +13,8 @@
 #include <SPI.h>
 #include <Wire.h>
 // test touch screen version
-// #include "TouchLib.h"
+#define TOUCH_MODULES_CST_SELF
+#include "TouchLib.h"
 
 // WebFrame
 #define DEBUG_FRAMEWEB // Debug frame before header
@@ -21,6 +22,7 @@
 #include "FrameWeb.h"
 FrameWeb frame;
 
+//#define LEPTON not finsh yet...
 // Purethermal FLIR LEPTON IR module 160x120 pixels.
 // LeptonFLiR ESP32XLib uses  pins 19=MISO, 23=MOSI, 16=SCK  and 5=SS.
 // LILYGO T-Display ESP32-53  pins 13=MISO, 11=MOSI, 12=SCLK and 10=CS0,
@@ -28,6 +30,15 @@ FrameWeb frame;
 const byte flirCSPin = 3;
 LeptonFLiR flirController(Wire, flirCSPin); // Library using Wire and chip select pin D22 -> D3
 #endif
+
+#if defined(TOUCH_MODULES_CST_SELF)
+#define PIN_IIC_SCL                  17
+#define PIN_IIC_SDA                  18
+#define PIN_TOUCH_INT                16
+#define PIN_TOUCH_RES                21
+TouchLib touch(Wire, PIN_IIC_SDA, PIN_IIC_SCL, CTS820_SLAVE_ADDRESS, PIN_TOUCH_RES);
+#endif
+int pressed = 0;
 
 // Frame & Wifi task
 QueueHandle_t qDsp = xQueueCreate(5, sizeof(uint32_t));
@@ -44,6 +55,12 @@ const int daylightOffset_sec = 3600;
 struct tm timeinfo; // time struct
 const char *ntpServer = "pool.ntp.org";
 DataMsg dmsg;
+
+uint32_t last_tick = 0;
+float fval;
+int fpsec = 0;
+int wifiLost = 0;
+static volatile int wifiSt = -1;
 
 // Frame option
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {}
@@ -95,7 +112,7 @@ void IRAM_ATTR startingTask(void *pvParameter)
       while (timeinfo.tm_year < 100 && lp < 100)
       {
         configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); // init and get the time
-        getLocalTime(&timeinfo, 0);
+        getLocalTime(&timeinfo);
         vTaskDelay(pdMS_TO_TICKS(1000));
         dmsg.msg = "NTP...";
         lp++;
@@ -118,9 +135,10 @@ void setup()
 
   // TEST
   //  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
+
 #ifdef LEPTON
   // Purethermal TEST 160x120
-  Wire.begin();          // Wire must be started first
+  Wire.begin();           // Wire must be started first
   Wire.setClock(1000000); // Supported baud rates are 100kHz, 400kHz, and 1000kHz
   SPI.begin();
   // Using memory allocation mode 80x60 8bpp and fahrenheit temperature mode
@@ -128,9 +146,9 @@ void setup()
   // Setting use of AGC for histogram equalization (since we only have 8-bit per pixel data anyways)
   flirController.agc_setAGCEnabled(ENABLED);
   flirController.sys_setTelemetryEnabled(ENABLED); // Ensure telemetry is enabled
-
- // flirController.printModuleInfo();
+  // flirController.printModuleInfo();
 #endif
+
   Serial.print("MISO=");
   Serial.println(MISO);
   Serial.print("MOSI=");
@@ -157,19 +175,32 @@ void setup()
         esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_BUTTON_2, 0); // 1 = High, 0 = Low
         esp_deep_sleep_start(); });
   button2.attachClick([]()
-                      { gui_switch_page(); });
+                      { gui_switch_page(1); });
 
+  // AccesPoint start task and waiting on Queue qDsp message:"w" 
   LV_LOG_USER("Thread startingTask starting...");
-  // Get Time
   xTaskCreate(&startingTask, "startingTask", 4096, NULL, WIFI_TASK_PRIORITY, &wifiCxHandle);
-
-  // start Wifi
-  xQueueSend(qDsp, "wifi", 0);
 
   // Start after SPIFS is opened
   delay(800);
 
   gui_pages();
+
+#if defined(TOUCH_MODULES_CST_SELF)
+  gpio_hold_dis((gpio_num_t)PIN_TOUCH_RES);
+  pinMode(PIN_TOUCH_RES, OUTPUT);
+  digitalWrite(PIN_TOUCH_RES, LOW);
+  delay(500);
+  digitalWrite(PIN_TOUCH_RES, HIGH);
+
+  if (!touch.init()) {
+    Serial.println("Touch IC not found");
+  }
+
+#endif
+
+  // start Wifi
+  xQueueSend(qDsp, "wifi", 0);
 }
 
 // --------------------------------------------------------------
@@ -181,29 +212,47 @@ void updateTime(String tt)
   gui_switch_clock(timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
 }
 
-uint32_t last_tick = 0;
-float fval;
-int fpsec = 0;
-int wifiLost = 0;
-static volatile int wifiSt = -1;
-
 void loop()
 {
-  // Call frame loop
-  if (timeinfo.tm_year > 100)
-    frame.loop();
+  // Call frame at 100ms loop
+  // if (timeinfo.tm_year > 99)
+  frame.loop();
+
+  // lv_task_handler(); call lv_timer_handler
   lv_timer_handler();
+
+  // Button Tick
   button1.tick();
   button2.tick();
 
-  // PIN_BAT_VOLT ADC_6db
+#if defined(TOUCH_MODULES_CST_SELF)
+  if (touch.read()) {
+    uint8_t n = touch.getPointNum();
+    for (uint8_t i = 0; i < n; i++) {
+      TP_Point t = touch.getPoint(i);
+      if ( t.x > EXAMPLE_LCD_V_RES/2)
+        pressed=+1;
+      else
+        pressed=-1;
+     // Serial.printf("x:%04d y:%04d p:%04d \r\n", t.x, t.y, t.pressure);
+    }
+  } else {
+    if (pressed!=0) {
+       gui_switch_page(pressed);
+       pressed=0;
+    }
+  }
+#endif
+
+  // PIN_BAT_VOLT ADC_6db every 1sec
   if (millis() - last_tick > 1000)
   {
     last_tick = millis();
     dmsg.count = fpsec;
     fpsec = 1;
+
     // New implementation
-    getLocalTime(&timeinfo, 0);
+    getLocalTime(&timeinfo);
 
     // Wifi status
     wifiSt = WiFi.status();
@@ -215,10 +264,11 @@ void loop()
         if (wifiLost == 2)
         {
           LV_LOG_USER("WiFi connection is lost. cnt:%d minutes", wifiLost);
-          WiFi.disconnect();
+          // WiFi.disconnect();
         }
         if (wifiLost == 4)
         {
+           LV_LOG_USER("WiFi try to reconnect (%d).", wifiLost);
           if (WiFi.reconnect())
           {
             LV_LOG_USER("WiFi reconnect OK (%d).", wifiLost);
@@ -232,8 +282,9 @@ void loop()
 
     updateTime(WiFi.localIP().toString());
 
-    esp_chip_info_t t;
-    esp_chip_info(&t);
+    // esp_chip_info_t t;
+    // esp_chip_info(&t);
+
     // Send table as TSV
     String text2 = ESP.getChipModel();
     text2 += '\t';
@@ -252,12 +303,12 @@ void loop()
     lv_msg_send(MSG_TABLE, &text2);
   } // End second
 
-  // more faster
+  // more faster update graph
   dmsg.raw = analogRead(PIN_BAT_VOLT);
   dmsg.volt = map(dmsg.raw, 0, 4095, 0, 3300);
   dmsg.value = (float)dmsg.volt / 1000.0;
   dmsg.fsin = 1650 + 1650 * sin(fval);
-  lv_msg_send(MSG_PAGE1, &dmsg);
+  lv_msg_send(MSG_PAGE1, &dmsg); // Send event
   fpsec++;
   fval = fval + 0.1;
 }
